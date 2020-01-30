@@ -1,0 +1,135 @@
+#define lights 9
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(0, 1); // RX, TX
+
+int LDR1, LDR2, LDR3; // sensor values
+// calibration offsets
+int leftOffset = 0, rightOffset = 0, center = 0;
+// pins for motor speed and direction
+int speed1 = 7, speed2 = 12, direction1 = 5, direction2 = 3;
+// starting speed and rotation offset
+int startSpeed = 150, rotate = 30; /* CHANGE START SPEED IF YOUR ROBOT IS TOO SLOW, AND CHANGE THE ROTATE VALUE ACCORDING TO YOUR 
+TURNING ANGLE OF BLACK LINE.*/
+
+int state; //BT
+int flag;  //BT
+
+// sensor threshold
+int threshold = 3;
+
+//water sensor
+const int VAL_PROBE = A3; // Analog pin 3
+const int MOISTURE_LEVEL = 250; // the value after the LED goes ON and wheels STOP.
+int moisture = analogRead(VAL_PROBE);
+
+// initial speeds of left and right motors
+int left = startSpeed, right = startSpeed;
+// Sensor calibration routine
+void calibrate() 
+{
+for (int x=0; x<10; x++) 
+{ // run this 10 times to obtain average
+digitalWrite(lights, HIGH); // lights on
+delay(100);
+LDR1 = analogRead(0); // read the 3 sensors
+LDR2 = analogRead(1);
+LDR3 = analogRead(2);
+leftOffset = leftOffset + LDR1; // add value of left sensor to total
+center = center + LDR2; // add value of center sensor to total
+rightOffset = rightOffset + LDR3; // add value of right sensor to total
+delay(100);
+digitalWrite(lights, LOW); // lights off
+delay(100);
+}
+// obtain average for each sensor
+leftOffset = leftOffset / 10;
+rightOffset = rightOffset / 10;
+center = center /10;
+// calculate offsets for left and right sensors
+leftOffset = center - leftOffset;
+rightOffset = center - rightOffset;
+}
+void setup()
+{ 
+Serial.begin(9600); // this is for LED for water sensor
+}
+void 
+LedState(int state)
+{
+ digitalWrite(13, state);
+ 
+// set the motor pins to outputs
+pinMode(lights, OUTPUT); // lights
+pinMode(speed1, OUTPUT);
+pinMode(speed2, OUTPUT);
+pinMode(direction1, OUTPUT);
+pinMode(direction2, OUTPUT);
+// calibrate the sensors
+calibrate();
+delay(3000);
+digitalWrite(lights, HIGH); // lights on
+delay(100);
+// set motor direction to forward
+digitalWrite(direction1, HIGH);
+digitalWrite(direction2, HIGH);
+// set speed of both motors
+analogWrite(speed1,left);
+analogWrite(speed2,right);
+}
+void loop() {
+ if (Serial.available () > 0){   //BT CODE STARTS
+   state = Serial.read ();
+   flag=0;
+}
+if (state == '0') {
+  digitalWrite (direction1,LOW);
+  digitalWrite (direction2,LOW);
+  if (flag == 0){
+    Serial.println("Motor: OFF");
+    flag = 1;
+  }
+}
+else if (state == '1'){
+  digitalWrite (direction1,HIGH);
+  digitalWrite (direction2,HIGH);
+  if (flag == 0){
+    Serial.println("Motor: ON");
+    flag=1;
+  }
+}      //BT CODE ENDS
+// make both motors same speed
+left = startSpeed;
+right = startSpeed;
+// read the sensors and add the offsets
+LDR1 = analogRead(0) + leftOffset;
+LDR2 = analogRead(1);
+LDR3 = analogRead(2) + rightOffset;
+// if LDR1 is greater than the center sensor + threshold turn right
+if (LDR1 > (LDR2+threshhold))
+{
+left = startSpeed + rotate;
+right = startSpeed - rotate;
+}
+// if LDR3 is greater than the center sensor + threshold turn left
+if (LDR3 > (LDR2+threshhold)) 
+{
+left = startSpeed - rotate;
+right = startSpeed + rotate;
+}
+// send the speed values to the motors
+analogWrite(speed1,left);
+analogWrite(speed2,right);
+
+ Serial.println(moisture); // water sensor code
+   if(moisture > MOISTURE_LEVEL) 
+{
+       LedState(HIGH);
+    digitalWrite(direction1,LOW); 
+    digitalWrite(direction2,LOW); 
+       
+ } else  
+  {
+       LedState(LOW);
+   }
+   
+}
